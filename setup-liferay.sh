@@ -1,6 +1,6 @@
 #!/bin/bash
 
-mkdir bundles licenses patches patching-tool tickets
+mkdir bundles licenses patches patching-tool tickets &> /dev/null
 
 lrversion() {
 
