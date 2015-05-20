@@ -1,5 +1,7 @@
 #!/bin/bash
 
+mkdir bundles licenses patches patching-tool tickets
+
 lrversion() {
 
   local -r ver_option="$1"
