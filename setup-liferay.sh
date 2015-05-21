@@ -29,7 +29,7 @@ install_patching-tool() {
   pt_latest_version=$(ls -1 patching-tool/ | sort -nr | head -n1)
   if [[ ! -z $pt_latest_version ]]; then
     rm -rf "$liferay_home/patching-tool"
-    unzip $pt_latest_version -d "$liferay_home"
+    unzip patching-tool/$pt_latest_version -d "$liferay_home"
     ./$liferay_home/patching-tool/patching-tool.sh auto-discovery
 
     # place a default.properties file with your liferay user and
