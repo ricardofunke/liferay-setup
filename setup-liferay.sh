@@ -1,6 +1,7 @@
 #!/bin/bash
 
-portal_link='http://files.liferay.com/private/ee/portal'
+portal_link='https://files.liferay.com/private/ee/portal'
+patchingtool_link='https://files.liferay.com/private/ee/fix-packs/patching-tool'
 
 mkdir bundles licenses patches patching-tool tickets &> /dev/null
 
@@ -26,12 +27,42 @@ create_workspace() {
   mkdir -p $workspace || exit 1
 }
 
+get_liferay_credentials() {
+
+  local remove_escapes='sed '"'"'s/\\!/!/g'"'"' | sed '"'"'s/\\\#/#/g'"'"' | sed '"'"'s/\\\=/=/g'"'"' | sed '"'"'s/\\\:/:/g'"'"''
+
+  liferay_user=$(grep 'download.user' default.properties | cut -f2 -d= | eval $remove_escapes)
+  liferay_pass=$(grep 'download.password' default.properties | cut -f2 -d= | eval $remove_escapes)
+
+}
+
+download_patching-tool() {
+  get_liferay_credentials
+  
+  if wget -q ${patchingtool_link}/LATEST.txt --user="${liferay_user}" --password="${liferay_pass}" -P /tmp; then
+
+    pt_latest=$(cat /tmp/LATEST.txt) && rm -f /tmp/LATEST.txt 
+
+    wget -q --show-progress -c ${patchingtool_link}/patching-tool-${pt_latest}-internal.zip --user="${liferay_user}" --password="${liferay_pass}" -P patching-tool/ \
+      || echo "ERROR: Could not download latest version of patching-tool!"
+
+  else
+    echo "ERROR: Could not determine patching-tool latest version!"
+  fi  
+}
+
 install_patching-tool() {
   local -r liferay_home="$1"
+
+  download_patching-tool
+
   pt_latest_version=$(ls -1 patching-tool/ | sort -nr | head -n1)
   if [[ ! -z $pt_latest_version ]]; then
     rm -rf "$liferay_home/patching-tool"
-    unzip patching-tool/$pt_latest_version -d "$liferay_home"
+
+    echo "Unzipig patching-tool..."
+    unzip -qn patching-tool/$pt_latest_version -d "$liferay_home"
+
     ./$liferay_home/patching-tool/patching-tool.sh auto-discovery
 
     # place a default.properties file with your liferay user and
@@ -50,13 +81,14 @@ install_license() {
 }
 
 download_liferay() {
-  read -p 'Your Liferay Username: ' liferay_user
-  wget -c ${portal_link}/${dwnldver}/$liferay_zip --user=${liferay_user} --ask-password -P bundles/ || exit 1
+  get_liferay_credentials
+  wget -q --show-progress -c ${portal_link}/${dwnldver}/$liferay_zip --user="${liferay_user}" --password="${liferay_pass}" -P bundles/ || exit 1
 }
 
 install_liferay() {
   download_liferay
-  unzip bundles/$liferay_zip -d $workspace
+  echo "Unziping Liferay..."
+  unzip -qn bundles/$liferay_zip -d $workspace
   install_license
   install_patching-tool $workspace/$liferay_instance
 }
