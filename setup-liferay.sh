@@ -1,5 +1,7 @@
 #!/bin/bash
 
+portal_link='http://files.liferay.com/private/ee/portal'
+
 mkdir bundles licenses patches patching-tool tickets &> /dev/null
 
 lrversion() {
@@ -7,10 +9,10 @@ lrversion() {
   local -r ver_option="$1"
 
   case "$ver_option" in
-    6.1.10) lrver=${ver_option} ;;
-    6.1.20) lrver="${ver_option}-ee-ga2-20120731110418084" ;;
-    6.1.30) lrver="${ver_option}-ee-ga3-20130812170130063" ;;
-    6.2.10) lrver="${ver_option}.1-ee-ga1-20131126141110470" ;;
+    6.1.10) lrver="${ver_option}-ee-ga1-20120217120951450" dwnldver="${ver_option}" ;;
+    6.1.20) lrver="${ver_option}-ee-ga2-20120731110418084" dwnldver="${ver_option}" ;;
+    6.1.30) lrver="${ver_option}-ee-ga3-20130812170130063" dwnldver="${ver_option}.1" ;;
+    6.2.10) lrver="${ver_option}.1-ee-ga1-20131126141110470" dwnldver="${ver_option}.1" ;;
     *)      echo "${ver_option} is not a valid version. Available versions are 6.1.10, 6.1.20, 6.1.30, 6.2.10" ; exit 1 ;;
   esac
 
@@ -47,7 +49,13 @@ install_license() {
   cp licenses/license-portaldevelopment-developer-cluster-${lrver_major}*.xml $workspace/$liferay_instance/deploy
 }
 
+download_liferay() {
+  read -p 'Your Liferay Username: ' liferay_user
+  wget -c ${portal_link}/${dwnldver}/$liferay_zip --user=${liferay_user} --ask-password -P bundles/ || exit 1
+}
+
 install_liferay() {
+  download_liferay
   unzip bundles/$liferay_zip -d $workspace
   install_license
   install_patching-tool $workspace/$liferay_instance
