@@ -37,18 +37,27 @@ get_liferay_credentials() {
 }
 
 download_patching-tool() {
-  get_liferay_credentials
   
-  if wget -q ${patchingtool_link}/LATEST.txt --user="${liferay_user}" --password="${liferay_pass}" -P /tmp; then
+  if get_liferay_credentials; then
+  
+    if wget -q ${patchingtool_link}/LATEST.txt --user="${liferay_user}" --password="${liferay_pass}" -P /tmp; then
 
-    pt_latest=$(cat /tmp/LATEST.txt) && rm -f /tmp/LATEST.txt 
+      pt_latest=$(cat /tmp/LATEST.txt) && rm -f /tmp/LATEST.txt 
 
-    wget -q --show-progress -c ${patchingtool_link}/patching-tool-${pt_latest}-internal.zip --user="${liferay_user}" --password="${liferay_pass}" -P patching-tool/ \
-      || echo "ERROR: Could not download latest version of patching-tool!"
+      if [[ ! -e patching-tool/patching-tool-${pt_latest}-internal.zip ]]; then
 
-  else
-    echo "ERROR: Could not determine patching-tool latest version!"
-  fi  
+        echo "Downloading latest version of patching-tool..."
+        wget -nv --show-progress -c ${patchingtool_link}/patching-tool-${pt_latest}-internal.zip --user="${liferay_user}" --password="${liferay_pass}" -P patching-tool/ \
+          || echo "ERROR: Could not download latest version of patching-tool!"
+
+      fi
+
+    else
+      echo "ERROR: Could not determine patching-tool latest version!"
+    fi
+ 
+  fi 
+
 }
 
 install_patching-tool() {
@@ -56,12 +65,12 @@ install_patching-tool() {
 
   download_patching-tool
 
-  pt_latest_version=$(ls -1 patching-tool/ | sort -nr | head -n1)
-  if [[ ! -z $pt_latest_version ]]; then
+  pt_latest_local=$(ls -1 patching-tool/ | sort -nr | head -n1)
+  if [[ ! -z $pt_latest_local ]]; then
     rm -rf "$liferay_home/patching-tool"
 
-    echo "Unzipig patching-tool..."
-    unzip -qn patching-tool/$pt_latest_version -d "$liferay_home"
+    echo "Unpacking patching-tool..."
+    unzip -qn patching-tool/$pt_latest_local -d "$liferay_home"
 
     ./$liferay_home/patching-tool/patching-tool.sh auto-discovery
 
@@ -81,13 +90,19 @@ install_license() {
 }
 
 download_liferay() {
-  get_liferay_credentials
-  wget -q --show-progress -c ${portal_link}/${dwnldver}/$liferay_zip --user="${liferay_user}" --password="${liferay_pass}" -P bundles/ || exit 1
+  if [[ ! -e bundles/$liferay_zip ]]; then
+    if get_liferay_credentials; then
+      echo "Downloading Liferay..."
+      wget -nv --show-progress -c ${portal_link}/${dwnldver}/$liferay_zip --user="${liferay_user}" --password="${liferay_pass}" -P bundles/ || exit 1
+    else
+      echo "Warn: Could not obtain your Liferay credentials!"
+    fi
+  fi
 }
 
 install_liferay() {
   download_liferay
-  echo "Unziping Liferay..."
+  echo "Unpacking Liferay..."
   unzip -qn bundles/$liferay_zip -d $workspace
   install_license
   install_patching-tool $workspace/$liferay_instance
@@ -104,7 +119,7 @@ install_patch() {
   fi
 }
 
-main() {
+run() {
   if [[ -z $workspace ]]; then
     echo "You must specify a workspace!"
     exit 1
@@ -149,4 +164,4 @@ while true; do
   esac
 done
 
-main
+run
