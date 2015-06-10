@@ -139,8 +139,8 @@ show_usage() {
   echo -e " -w, --workspace \t Specify the new workspace to work on, eg. smiles-11"
   echo -e " -v, --lrversion \t Specify the Liferay Version, eg. 6.2.10"
   echo -e " -p, --patch     \t Specify a patch to install eg. portal-40-6210 (multiple patches must"
-  echo -e "                 \t   be separated by commas inside quotation marks, this option also supports"
-  echo -e "                 \t   a patchinfo.txt file)"
+  echo -e "                 \t   be separated by commas and inside quotation marks, this option also"
+  echo -e "                 \t   supports a patchinfo.txt file)"
   echo -e " -n, --nopatch   \t Don't install the latest patch automatically (not implemented yet)"
   echo -e " -h, --help      \t Show this message."
 }
