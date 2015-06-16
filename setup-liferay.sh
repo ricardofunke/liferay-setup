@@ -111,9 +111,9 @@ install_liferay() {
 install_patch() {
   if [[ $nopatch != true ]]; then
     if [[ -a $1 ]]; then
-      ./$workspace/$liferay_instance/patching-tool/patching-tool.sh download-all $1
+      ./$workspace/$liferay_instance/patching-tool/patching-tool.sh download-all "$(pwd)/$1"
     else
-      ./$workspace/$liferay_instance/patching-tool/patching-tool.sh download $1
+      ./$workspace/$liferay_instance/patching-tool/patching-tool.sh download "$1"
     fi
     ./$workspace/$liferay_instance/patching-tool/patching-tool.sh install
   fi
