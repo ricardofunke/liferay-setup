@@ -2,6 +2,7 @@
 
 portal_link='https://files.liferay.com/private/ee/portal'
 patchingtool_link='https://files.liferay.com/private/ee/fix-packs/patching-tool'
+patches_link='https://files.liferay.com/private/ee/fix-packs'
 
 mkdir bundles licenses patches patching-tool tickets &> /dev/null
 
@@ -20,6 +21,7 @@ lrversion() {
   liferay_zip="liferay-portal-tomcat-${lrver}.zip"
   liferay_instance="liferay-portal-${lrver%-*}"
   lrver_major="${ver_option%.*}"
+  lrversion=${ver_option}
 }
 
 create_workspace() {
@@ -100,14 +102,6 @@ download_liferay() {
   fi
 }
 
-install_liferay() {
-  download_liferay
-  echo "Unpacking Liferay..."
-  unzip -qn bundles/$liferay_zip -d $workspace
-  install_license
-  install_patching-tool $workspace/$liferay_instance
-}
-
 install_patch() {
   if [[ $nopatch != true ]]; then
     if [[ -a $1 ]]; then
@@ -117,6 +111,57 @@ install_patch() {
     fi
     ./$workspace/$liferay_instance/patching-tool/patching-tool.sh install
   fi
+}
+
+install_latest_patch() {
+
+if [[ $nopatch != true ]] || [[ -z $patch ]]; then
+  case "$lrversion" in
+    6.1.30|6.2.10)
+      if get_liferay_credentials; then
+    
+        if wget -q ${patches_link}/${lrversion}/portal/LATEST.txt --user="${liferay_user}" --password="${liferay_pass}" -P /tmp; then
+    
+          latest_patch=$(cat /tmp/LATEST.txt) && rm -f /tmp/LATEST.txt
+    
+          if [[ ! -e patches/liferay-fix-pack-portal-${latest_patch}-${lrversion//./}.zip ]]; then
+    
+            echo "Downloading latest patch..."
+            wget -nv --show-progress -c ${patches_link}/${lrversion}/portal/liferay-fix-pack-portal-${latest_patch}-${lrversion//./}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/ 
+
+            if [[ $? -eq 0 ]]; then
+              cp patches/liferay-fix-pack-portal-${latest_patch}-${lrversion//./}.zip $workspace/$liferay_instance/patching-tool/patches/
+              ./$workspace/$liferay_instance/patching-tool/patching-tool.sh install
+            else
+              echo "ERROR: Could not download latest patch!"
+            fi
+
+          else
+
+            cp patches/liferay-fix-pack-portal-${latest_patch}-${lrversion//./}.zip $workspace/$liferay_instance/patching-tool/patches/
+            ./$workspace/$liferay_instance/patching-tool/patching-tool.sh install
+
+          fi
+    
+        else
+          echo "ERROR: Could not determine latest patch version!"
+        fi
+    
+      fi
+    ;;
+    *) echo "Warn: Automatic patch download not implemented for this version of Liferay $lrversion" ;;
+  esac
+fi
+
+}
+
+install_liferay() {
+  download_liferay
+  echo "Unpacking Liferay..."
+  unzip -qn bundles/$liferay_zip -d $workspace
+  install_license
+  install_patching-tool $workspace/$liferay_instance
+  install_latest_patch
 }
 
 run() {
