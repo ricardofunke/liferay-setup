@@ -115,7 +115,7 @@ install_patch() {
 
 install_latest_patch() {
 
-if [[ $nopatch != true ]] || [[ -z $patch ]]; then
+if [[ $nopatch != true ]] && [[ -z $patch ]]; then
   case "$lrversion" in
     6.1.30|6.2.10)
       if get_liferay_credentials; then
@@ -186,7 +186,7 @@ show_usage() {
   echo -e " -p, --patch     \t Specify a patch to install eg. portal-40-6210 (multiple patches must"
   echo -e "                 \t   be separated by commas and inside quotation marks, this option also"
   echo -e "                 \t   supports a patchinfo.txt file)"
-  echo -e " -n, --nopatch   \t Don't install the latest patch automatically (not implemented yet)"
+  echo -e " -n, --nopatch   \t Don't install the latest patch automatically"
   echo -e " -h, --help      \t Show this message."
 }
 
@@ -201,12 +201,12 @@ eval set -- "$ARGS"
 
 while true; do
   case "$1" in
-    -w|--workspace)      create_workspace "$2"  ;    shift 2  ;;
-    -v|--lrversion)      lrversion "$2"         ;    shift 2  ;;
-    -p|--patch)          patch="$2"             ;    shift 2  ;;
-    -n|--nopatch)        nopatch=true           ;    shift    ;;
-    -h|--help)           show_usage             ;    exit 0   ;;
-    --)                  shift                  ;    break    ;;
+    -w|--workspace)      create_workspace "$2"	;    shift 2  ;;
+    -v|--lrversion)      lrversion "$2"        	;    shift 2  ;;
+    -p|--patch)          patch="$2" 		;    shift 2  ;;
+    -n|--nopatch)        nopatch=true          	;    shift    ;;
+    -h|--help)           show_usage            	;    exit 0   ;;
+    --)                  shift                 	;    break    ;;
     *)                   show_usage             ;    exit 1   ;;
   esac
 done
