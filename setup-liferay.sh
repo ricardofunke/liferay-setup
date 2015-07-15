@@ -156,6 +156,12 @@ fi
 }
 
 install_liferay() {
+  if [[ -d $workspace/$liferay_instance ]]; then
+    echo "There's already an instance of Liferay installed on $workspace/$liferay_instance"
+    echo "Nothing to do. Exiting..."
+    exit 1
+  fi
+  
   download_liferay
   echo "Unpacking Liferay..."
   unzip -qn bundles/$liferay_zip -d $workspace
@@ -202,12 +208,12 @@ eval set -- "$ARGS"
 while true; do
   case "$1" in
     -w|--workspace)      create_workspace "$2"	;    shift 2  ;;
-    -v|--lrversion)      lrversion "$2"        	;    shift 2  ;;
-    -p|--patch)          patch="$2" 		;    shift 2  ;;
-    -n|--nopatch)        nopatch=true          	;    shift    ;;
-    -h|--help)           show_usage            	;    exit 0   ;;
-    --)                  shift                 	;    break    ;;
-    *)                   show_usage             ;    exit 1   ;;
+    -v|--lrversion)      lrversion "$2"		;    shift 2  ;;
+    -p|--patch)          patch="$2"		;    shift 2  ;;
+    -n|--nopatch)        nopatch=true		;    shift    ;;
+    -h|--help)           show_usage		;    exit 0   ;;
+    --)                  shift			;    break    ;;
+    *)                   show_usage		;    exit 1   ;;
   esac
 done
 
