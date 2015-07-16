@@ -165,6 +165,7 @@ install_liferay() {
   download_liferay
   echo "Unpacking Liferay..."
   unzip -qn bundles/$liferay_zip -d $workspace
+  chmod +x $workspace/$liferay_instance/tomcat*/bin/*.sh
   install_license
   install_patching-tool $workspace/$liferay_instance
   install_latest_patch
