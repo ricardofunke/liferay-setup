@@ -1,4 +1,5 @@
-Here is some explanation about the directories:
+The directories bellow are created in the first run of "setup-liferay.sh" script.
+Here are some explanations about them:
 
 - bundles: Download Liferay Bundles here
 - licenses: Put your Liferay Dev Licenses here
