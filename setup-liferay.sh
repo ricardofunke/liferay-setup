@@ -107,7 +107,7 @@ download_liferay() {
   fi
 }
 
-install_patch() {
+download_patch() {
 #  if [[ $nopatch != true ]]; then
 #    if [[ -a $1 ]]; then
 #      ./$workspace/$liferay_instance/patching-tool/patching-tool.sh download-all "$(pwd)/$1"
@@ -121,38 +121,68 @@ install_patch() {
     portal-*)
       case "$1" in
         *-6130)
-          wget -nv --show-progress -c ${patches_link}/6.1.30/portal/liferay-fix-pack-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/ 
+          if [[ ! -e patches/liferay-fix-pack-${1}.zip ]]; then
+            wget -nv --show-progress -c ${patches_link}/6.1.30/portal/liferay-fix-pack-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/ 
+          fi
+          cp -v patches/liferay-fix-pack-${1}.zip $workspace/$liferay_instance/patching-tool/patches/
         ;;
         *-6210)
-          wget -nv --show-progress -c ${patches_link}/6.2.10/portal/liferay-fix-pack-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/ 
+          if [[ ! -e patches/liferay-fix-pack-${1}.zip ]]; then
+            wget -nv --show-progress -c ${patches_link}/6.2.10/portal/liferay-fix-pack-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/ 
+          fi
+          cp -v patches/liferay-fix-pack-${1}.zip $workspace/$liferay_instance/patching-tool/patches/
         ;;
       esac
-       
+    ;;
+    hotfix-*)
+      case "$1" in
+        *-6110)
+          if [[ ! -e patches/liferay-${1}.zip ]]; then
+            wget -nv --show-progress -c ${patches_link}/6.1.10/hotfix/liferay-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/
+          fi
+          cp -v patches/liferay-${1}.zip $workspace/$liferay_instance/patching-tool/patches/
+        ;;
+        *-6120)
+          if [[ ! -e patches/liferay-${1}.zip ]]; then
+            wget -nv --show-progress -c ${patches_link}/6.1.20/hotfix/liferay-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/
+          fi
+          cp -v patches/liferay-${1}.zip $workspace/$liferay_instance/patching-tool/patches/
+        ;;
+        *-6130)
+          if [[ ! -e patches/liferay-${1}.zip ]]; then
+            wget -nv --show-progress -c ${patches_link}/6.1.30/hotfix/liferay-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/
+          fi
+          cp -v patches/liferay-${1}.zip $workspace/$liferay_instance/patching-tool/patches/
+        ;;
+        *-6210)
+          if [[ ! -e patches/liferay-${1}.zip ]]; then
+            wget -nv --show-progress -c ${patches_link}/6.2.10/hotfix/liferay-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/
+          fi
+          cp -v patches/liferay-${1}.zip $workspace/$liferay_instance/patching-tool/patches/
+        ;;
+      esac
+    ;;
+    *)
+      echo "Usage: $FUNCNAME [portal-*|hotfix-*]"
+    ;;
+  esac
+
+}
+
+install_patch() {
+
+  case "$1" in
+    portal-*)       
+      download_patch "$1"
       if [[ $? -eq 0 ]]; then
-        cp patches/liferay-fix-pack-${1}.zip $workspace/$liferay_instance/patching-tool/patches/
         ./$workspace/$liferay_instance/patching-tool/patching-tool.sh install
       else
         echo "ERROR: Could not download $1!"
       fi
     ;;
-    hotfix-*)
-      case "$1" in
-        *-6110)
-          wget -nv --show-progress -c ${patches_link}/6.1.10/hotfix/liferay-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/
-        ;;
-        *-6120)
-          wget -nv --show-progress -c ${patches_link}/6.1.20/hotfix/liferay-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/
-        ;;
-        *-6130)
-          wget -nv --show-progress -c ${patches_link}/6.1.30/hotfix/liferay-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/
-        ;;
-        *-6210)
-          wget -nv --show-progress -c ${patches_link}/6.2.10/hotfix/liferay-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/
-        ;;
-      esac
-  
+    hotfix-*)    
+      download_patch "$1"
       if [[ $? -eq 0 ]]; then
-        cp patches/liferay-${1}.zip $workspace/$liferay_instance/patching-tool/patches/
         ./$workspace/$liferay_instance/patching-tool/patching-tool.sh install
       else
         echo "ERROR: Could not download $1!"
@@ -199,24 +229,28 @@ fi
 }
 
 install_liferay() {
-  if [[ -d $workspace/$liferay_instance ]]; then
+ 
+  if [[ ! -d $workspace/$liferay_instance ]] && [[ -z $dpatch ]]; then
+    download_liferay
+    echo "Unpacking Liferay..."
+    unzip -qn bundles/$liferay_zip -d $workspace
+    chmod +x $workspace/$liferay_instance/tomcat*/bin/*.sh
+    install_license
+    install_patching-tool $workspace/$liferay_instance
+    install_latest_patch
+  elif [[ -d $workspace/$liferay_instance ]] && [[ -z $dpatch ]]; then
     echo "There's already an instance of Liferay installed on $workspace/$liferay_instance"
     echo "Nothing to do. Exiting..."
     exit 1
+  elif [[ -d $workspace/$liferay_instance ]] && [[ ! -z $dpatch ]]; then
+    download_patch $dpatch
   fi
-  
-  download_liferay
-  echo "Unpacking Liferay..."
-  unzip -qn bundles/$liferay_zip -d $workspace
-  chmod +x $workspace/$liferay_instance/tomcat*/bin/*.sh
-  install_license
-  install_patching-tool $workspace/$liferay_instance
-  install_latest_patch
+   
 }
 
 run() {
-  if [[ -z $workspace ]]; then
-    echo "You must specify a workspace!"
+  if [[ -z $workspace || -z $lrversion ]]; then
+    echo "You must specify a workspace and a Liferay version!"
     exit 1
   fi
   
@@ -237,6 +271,7 @@ show_usage() {
   echo -e " -p, --patch     \t Specify a patch to install eg. portal-40-6210 (multiple patches must"
   echo -e "                 \t   be separated by commas and inside quotation marks, this option also"
   echo -e "                 \t   supports a patchinfo.txt file)"
+  echo -e " -d, --downloadpatch \t Only download a patch to the specified workspace"
   echo -e " -n, --nopatch   \t Don't install the latest patch automatically"
   echo -e " -h, --help      \t Show this message."
 }
@@ -244,8 +279,8 @@ show_usage() {
 first_param="${@:1}"
 if [[ $# -eq 0 || "${first_param:0:1}" != "-" ]]; then show_usage; exit 1; fi
 
-SHORTOPTS="w:v:p:n"
-LONGOPTS="workspace:,lrversion:,patch:,nopatch,help"
+SHORTOPTS="w:v:p:d:n"
+LONGOPTS="workspace:,lrversion:,patch:,downloadpatch:,nopatch,help"
 
 ARGS=$(getopt --name $0 --longoptions="$LONGOPTS" --options="$SHORTOPTS" -- "$@")
 eval set -- "$ARGS"
@@ -255,6 +290,7 @@ while true; do
     -w|--workspace)      create_workspace "$2"	;    shift 2  ;;
     -v|--lrversion)      lrversion "$2"		;    shift 2  ;;
     -p|--patch)          patch="$2"		;    shift 2  ;;
+    -d|--downloadpatch)  dpatch="$2"		;    shift 2  ;;
     -n|--nopatch)        nopatch=true		;    shift    ;;
     -h|--help)           show_usage		;    exit 0   ;;
     --)                  shift			;    break    ;;
