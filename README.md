@@ -8,4 +8,8 @@ Here is some explanation about the directories:
 
 See the script usage by typing:
 
-./install_liferay --help
+./setup-liferay.sh --help
+
+Before using setup-liferay.sh, put your Liferay username and password in the default.properties file, then
+run "./crypt-decrypt enc" to encrypt your password. It's important to choose another password for the encryption
+
