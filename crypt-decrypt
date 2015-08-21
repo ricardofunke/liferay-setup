@@ -1,0 +1,39 @@
+#!/bin/bash
+
+PROPERTIES_FILE='default.properties'
+HASH_PROPERTY='download.password'
+
+exists_property() {
+	local __property="$1"
+        grep -Eqs "^$__property" "$PROPERTIES_FILE"
+}
+
+get_password() {	
+	if exists_property "$HASH_PROPERTY"; then
+                password=$(grep "$HASH_PROPERTY" "$PROPERTIES_FILE" | cut -f2 -d=) 
+                sed -i "/$HASH_PROPERTY/d" "$PROPERTIES_FILE"
+	else
+                echo "Type your Liferay password:"
+	        read -s password
+	fi
+}
+
+encrypt() {
+        get_password
+	local __hash=$(printf "$password" | openssl enc -aes-256-ctr | xxd -p)
+        echo $HASH_PROPERTY=$__hash >> "$PROPERTIES_FILE"
+}
+
+decrypt() {
+	if exists_property "$HASH_PROPERTY"; then
+		local __hash=$(grep "$HASH_PROPERTY" "$PROPERTIES_FILE" | cut -f2 -d=)
+		echo $(printf "$__hash" | xxd -p -r | openssl aes-256-ctr -d)
+	fi
+}
+
+case "$1" in
+  enc) encrypt ;;
+  dec) decrypt ;;
+    *) echo "Usage $0: [enc|dec]" ;;
+esac
+

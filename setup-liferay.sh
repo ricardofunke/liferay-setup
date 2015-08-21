@@ -25,40 +25,51 @@ lrversion() {
 }
 
 create_workspace() {
-  declare -gr workspace="tickets/$1"
+  readonly workspace="tickets/$1"
   mkdir -p $workspace || exit 1
 }
 
 get_liferay_credentials() {
 
+  # place a default.properties file with your liferay user and
+  # password like bellow, so we can use it to download patches:
+  #
+  # download.url=http://files.liferay.com/private/ee/fix-packs/
+  # download.user=<your.user>
+  # download.password=<your password>
+  #
+  # then execute "./crypt-decrypt enc" to encrypt your password
+
   local remove_escapes='sed '"'"'s/\\!/!/g'"'"' | sed '"'"'s/\\\#/#/g'"'"' | sed '"'"'s/\\\=/=/g'"'"' | sed '"'"'s/\\\:/:/g'"'"''
 
-  liferay_user=$(grep 'download.user' default.properties | cut -f2 -d= | eval $remove_escapes)
-  liferay_pass=$(grep 'download.password' default.properties | cut -f2 -d= | eval $remove_escapes)
+  {
+    readonly liferay_user=$(grep 'download.user' default.properties | cut -f2 -d= | eval $remove_escapes)
+    #readonly liferay_pass=$(grep 'download.password' default.properties | cut -f2 -d= | eval $remove_escapes)
+    readonly liferay_pass=$(./crypt-decrypt dec | eval $remove_escapes)
+  } || { 
+    echo "ERROR: Set your credentials in the default.properties file!"
+    exit 1
+  }
 
 }
 
 download_patching-tool() {
   
-  if get_liferay_credentials; then
-  
-    if wget -q ${patchingtool_link}/LATEST.txt --user="${liferay_user}" --password="${liferay_pass}" -P /tmp; then
+  if wget -q ${patchingtool_link}/LATEST.txt --user="${liferay_user}" --password="${liferay_pass}" -P /tmp; then
 
-      pt_latest=$(cat /tmp/LATEST.txt) && rm -f /tmp/LATEST.txt 
+    pt_latest=$(cat /tmp/LATEST.txt) && rm -f /tmp/LATEST.txt 
 
-      if [[ ! -e patching-tool/patching-tool-${pt_latest}-internal.zip ]]; then
+    if [[ ! -e patching-tool/patching-tool-${pt_latest}-internal.zip ]]; then
 
-        echo "Downloading latest version of patching-tool..."
-        wget -nv --show-progress -c ${patchingtool_link}/patching-tool-${pt_latest}-internal.zip --user="${liferay_user}" --password="${liferay_pass}" -P patching-tool/ \
-          || echo "ERROR: Could not download latest version of patching-tool!"
+      echo "Downloading latest version of patching-tool..."
+      wget -nv --show-progress -c ${patchingtool_link}/patching-tool-${pt_latest}-internal.zip --user="${liferay_user}" --password="${liferay_pass}" -P patching-tool/ \
+        || echo "ERROR: Could not download latest version of patching-tool!"
 
-      fi
-
-    else
-      echo "ERROR: Could not determine patching-tool latest version!"
     fi
- 
-  fi 
+
+  else
+    echo "ERROR: Could not determine patching-tool latest version!"
+  fi
 
 }
 
@@ -76,13 +87,7 @@ install_patching-tool() {
 
     ./$liferay_home/patching-tool/patching-tool.sh auto-discovery
 
-    # place a default.properties file with your liferay user and
-    # password like bellow, so we can use it to download patches:
-    #
-    # download.url=http://files.liferay.com/private/ee/fix-packs/
-    # download.user=<your.user>
-    # download.password=<your password>
-    [[ -e default.properties ]] && cat default.properties >> ./$liferay_home/patching-tool/default.properties
+    [[ -e default.properties ]] && grep -Ev '^download.' default.properties >> ./$liferay_home/patching-tool/default.properties
   fi
 }
 
@@ -93,12 +98,12 @@ install_license() {
 
 download_liferay() {
   if [[ ! -e bundles/$liferay_zip ]]; then
-    if get_liferay_credentials; then
-      echo "Downloading Liferay..."
-      wget -nv --show-progress -c ${portal_link}/${dwnldver}/$liferay_zip --user="${liferay_user}" --password="${liferay_pass}" -P bundles/ || exit 1
-    else
-      echo "Warn: Could not obtain your Liferay credentials!"
-    fi
+    echo "Downloading Liferay..."
+    {
+      wget -nv --show-progress -c ${portal_link}/${dwnldver}/$liferay_zip --user="${liferay_user}" --password="${liferay_pass}" -P bundles/
+    } || {
+      echo "ERROR: Could not download Liferay!" ; exit 1
+    }
   fi
 }
 
@@ -118,36 +123,34 @@ install_latest_patch() {
 if [[ $nopatch != true ]] && [[ -z $patch ]]; then
   case "$lrversion" in
     6.1.30|6.2.10)
-      if get_liferay_credentials; then
     
-        if wget -q ${patches_link}/${lrversion}/portal/LATEST.txt --user="${liferay_user}" --password="${liferay_pass}" -P /tmp; then
-    
-          latest_patch=$(cat /tmp/LATEST.txt) && rm -f /tmp/LATEST.txt
-    
-          if [[ ! -e patches/liferay-fix-pack-portal-${latest_patch}-${lrversion//./}.zip ]]; then
-    
-            echo "Downloading latest patch..."
-            wget -nv --show-progress -c ${patches_link}/${lrversion}/portal/liferay-fix-pack-portal-${latest_patch}-${lrversion//./}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/ 
+      if wget -q ${patches_link}/${lrversion}/portal/LATEST.txt --user="${liferay_user}" --password="${liferay_pass}" -P /tmp; then
+  
+        latest_patch=$(cat /tmp/LATEST.txt) && rm -f /tmp/LATEST.txt
+  
+        if [[ ! -e patches/liferay-fix-pack-portal-${latest_patch}-${lrversion//./}.zip ]]; then
+  
+          echo "Downloading latest patch..."
+          wget -nv --show-progress -c ${patches_link}/${lrversion}/portal/liferay-fix-pack-portal-${latest_patch}-${lrversion//./}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/ 
 
-            if [[ $? -eq 0 ]]; then
-              cp patches/liferay-fix-pack-portal-${latest_patch}-${lrversion//./}.zip $workspace/$liferay_instance/patching-tool/patches/
-              ./$workspace/$liferay_instance/patching-tool/patching-tool.sh install
-            else
-              echo "ERROR: Could not download latest patch!"
-            fi
-
-          else
-
+          if [[ $? -eq 0 ]]; then
             cp patches/liferay-fix-pack-portal-${latest_patch}-${lrversion//./}.zip $workspace/$liferay_instance/patching-tool/patches/
             ./$workspace/$liferay_instance/patching-tool/patching-tool.sh install
-
+          else
+            echo "ERROR: Could not download latest patch!"
           fi
-    
+
         else
-          echo "ERROR: Could not determine latest patch version!"
+
+          cp patches/liferay-fix-pack-portal-${latest_patch}-${lrversion//./}.zip $workspace/$liferay_instance/patching-tool/patches/
+          ./$workspace/$liferay_instance/patching-tool/patching-tool.sh install
+
         fi
-    
+  
+      else
+        echo "ERROR: Could not determine latest patch version!"
       fi
+    
     ;;
     *) echo "Warn: Automatic patch download not implemented for this version of Liferay $lrversion" ;;
   esac
@@ -176,7 +179,8 @@ run() {
     echo "You must specify a workspace!"
     exit 1
   fi
-
+  
+  get_liferay_credentials
   install_liferay
 
   if [[ ! -z $patch ]]; then
