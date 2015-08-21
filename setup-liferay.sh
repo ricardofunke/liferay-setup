@@ -108,14 +108,61 @@ download_liferay() {
 }
 
 install_patch() {
-  if [[ $nopatch != true ]]; then
-    if [[ -a $1 ]]; then
-      ./$workspace/$liferay_instance/patching-tool/patching-tool.sh download-all "$(pwd)/$1"
-    else
-      ./$workspace/$liferay_instance/patching-tool/patching-tool.sh download "$1"
-    fi
-    ./$workspace/$liferay_instance/patching-tool/patching-tool.sh install
-  fi
+#  if [[ $nopatch != true ]]; then
+#    if [[ -a $1 ]]; then
+#      ./$workspace/$liferay_instance/patching-tool/patching-tool.sh download-all "$(pwd)/$1"
+#    else
+#      ./$workspace/$liferay_instance/patching-tool/patching-tool.sh download "$1"
+#    fi
+#    ./$workspace/$liferay_instance/patching-tool/patching-tool.sh install
+#  fi
+
+  case "$1" in
+    portal-*)
+      case "$1" in
+        *-6130)
+          wget -nv --show-progress -c ${patches_link}/6.1.30/portal/liferay-fix-pack-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/ 
+        ;;
+        *-6210)
+          wget -nv --show-progress -c ${patches_link}/6.2.10/portal/liferay-fix-pack-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/ 
+        ;;
+      esac
+       
+      if [[ $? -eq 0 ]]; then
+        cp patches/liferay-fix-pack-${1}.zip $workspace/$liferay_instance/patching-tool/patches/
+        ./$workspace/$liferay_instance/patching-tool/patching-tool.sh install
+      else
+        echo "ERROR: Could not download $1!"
+      fi
+    ;;
+    hotfix-*)
+      case "$1" in
+        *-6110)
+          wget -nv --show-progress -c ${patches_link}/6.1.10/hotfix/liferay-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/
+        ;;
+        *-6120)
+          wget -nv --show-progress -c ${patches_link}/6.1.20/hotfix/liferay-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/
+        ;;
+        *-6130)
+          wget -nv --show-progress -c ${patches_link}/6.1.30/hotfix/liferay-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/
+        ;;
+        *-6210)
+          wget -nv --show-progress -c ${patches_link}/6.2.10/hotfix/liferay-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/
+        ;;
+      esac
+  
+      if [[ $? -eq 0 ]]; then
+        cp patches/liferay-${1}.zip $workspace/$liferay_instance/patching-tool/patches/
+        ./$workspace/$liferay_instance/patching-tool/patching-tool.sh install
+      else
+        echo "ERROR: Could not download $1!"
+      fi
+    ;;
+    *)
+      echo "Usage: $FUNCNAME [portal-*|hotfix-*]"
+    ;;
+  esac
+
 }
 
 install_latest_patch() {
@@ -131,14 +178,7 @@ if [[ $nopatch != true ]] && [[ -z $patch ]]; then
         if [[ ! -e patches/liferay-fix-pack-portal-${latest_patch}-${lrversion//./}.zip ]]; then
   
           echo "Downloading latest patch..."
-          wget -nv --show-progress -c ${patches_link}/${lrversion}/portal/liferay-fix-pack-portal-${latest_patch}-${lrversion//./}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/ 
-
-          if [[ $? -eq 0 ]]; then
-            cp patches/liferay-fix-pack-portal-${latest_patch}-${lrversion//./}.zip $workspace/$liferay_instance/patching-tool/patches/
-            ./$workspace/$liferay_instance/patching-tool/patching-tool.sh install
-          else
-            echo "ERROR: Could not download latest patch!"
-          fi
+          install_patch "portal-${latest_patch}-${lrversion//./}"
 
         else
 
