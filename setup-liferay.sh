@@ -53,16 +53,35 @@ get_liferay_credentials() {
 
 }
 
+download(){
+  # $1 [progress|quiet] 
+  # $2 Download URL
+  # $3 Path to download to
+
+  case "$1" in
+    progress)
+      wget -nv --show-progress -c $2 --user="${liferay_user}" --password="${liferay_pass}" -P $3
+    ;;
+    quiet)
+      wget -q -c $2 --user="${liferay_user}" --password="${liferay_pass}" -P $3
+    ;;
+    *)
+      echo "Usage $FUNCNAME [progress|quiet]"
+    ;;
+  esac
+
+}
+
 download_patching-tool() {
   
-  if wget -q ${patchingtool_link}/LATEST.txt --user="${liferay_user}" --password="${liferay_pass}" -P /tmp; then
+  if download quiet ${patchingtool_link}/LATEST.txt /tmp; then
 
     pt_latest=$(cat /tmp/LATEST.txt) && rm -f /tmp/LATEST.txt 
 
     if [[ ! -e patching-tool/patching-tool-${pt_latest}-internal.zip ]]; then
 
       echo "Downloading latest version of patching-tool..."
-      wget -nv --show-progress -c ${patchingtool_link}/patching-tool-${pt_latest}-internal.zip --user="${liferay_user}" --password="${liferay_pass}" -P patching-tool/ \
+      download progress ${patchingtool_link}/patching-tool-${pt_latest}-internal.zip patching-tool/ \
         || echo "ERROR: Could not download latest version of patching-tool!"
 
     fi
@@ -100,7 +119,7 @@ download_liferay() {
   if [[ ! -e bundles/$liferay_zip ]]; then
     echo "Downloading Liferay..."
     {
-      wget -nv --show-progress -c ${portal_link}/${dwnldver}/$liferay_zip --user="${liferay_user}" --password="${liferay_pass}" -P bundles/
+      download progress ${portal_link}/${dwnldver}/$liferay_zip bundles/
     } || {
       echo "ERROR: Could not download Liferay!" ; exit 1
     }
@@ -122,15 +141,18 @@ download_patch() {
       case "$1" in
         *-6130)
           if [[ ! -e patches/liferay-fix-pack-${1}.zip ]]; then
-            wget -nv --show-progress -c ${patches_link}/6.1.30/portal/liferay-fix-pack-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/ 
+            download progress ${patches_link}/6.1.30/portal/liferay-fix-pack-${1}.zip patches/
           fi
           cp -v patches/liferay-fix-pack-${1}.zip $workspace/$liferay_instance/patching-tool/patches/
         ;;
         *-6210)
           if [[ ! -e patches/liferay-fix-pack-${1}.zip ]]; then
-            wget -nv --show-progress -c ${patches_link}/6.2.10/portal/liferay-fix-pack-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/ 
+            download progress ${patches_link}/6.2.10/portal/liferay-fix-pack-${1}.zip patches/
           fi
           cp -v patches/liferay-fix-pack-${1}.zip $workspace/$liferay_instance/patching-tool/patches/
+        ;;
+        *)
+          echo "Usage: $FUNCNAME [portal-*-6130|portal-*-6210]"
         ;;
       esac
     ;;
@@ -138,27 +160,30 @@ download_patch() {
       case "$1" in
         *-6110)
           if [[ ! -e patches/liferay-${1}.zip ]]; then
-            wget -nv --show-progress -c ${patches_link}/6.1.10/hotfix/liferay-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/
+            download progress ${patches_link}/6.1.10/hotfix/liferay-${1}.zip patches/
           fi
           cp -v patches/liferay-${1}.zip $workspace/$liferay_instance/patching-tool/patches/
         ;;
         *-6120)
           if [[ ! -e patches/liferay-${1}.zip ]]; then
-            wget -nv --show-progress -c ${patches_link}/6.1.20/hotfix/liferay-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/
+            download progress ${patches_link}/6.1.20/hotfix/liferay-${1}.zip patches/
           fi
           cp -v patches/liferay-${1}.zip $workspace/$liferay_instance/patching-tool/patches/
         ;;
         *-6130)
           if [[ ! -e patches/liferay-${1}.zip ]]; then
-            wget -nv --show-progress -c ${patches_link}/6.1.30/hotfix/liferay-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/
+            download progress ${patches_link}/6.1.30/hotfix/liferay-${1}.zip patches/
           fi
           cp -v patches/liferay-${1}.zip $workspace/$liferay_instance/patching-tool/patches/
         ;;
         *-6210)
           if [[ ! -e patches/liferay-${1}.zip ]]; then
-            wget -nv --show-progress -c ${patches_link}/6.2.10/hotfix/liferay-${1}.zip --user="${liferay_user}" --password="${liferay_pass}" -P patches/
+            download progress ${patches_link}/6.2.10/hotfix/liferay-${1}.zip patches/
           fi
           cp -v patches/liferay-${1}.zip $workspace/$liferay_instance/patching-tool/patches/
+        ;;
+        *)
+          echo "Usage: $FUNCNAME [portal-*-6110|portal-*-6120|portal-*-6130|portal-*-6210]"
         ;;
       esac
     ;;
@@ -201,7 +226,7 @@ if [[ $nopatch != true ]] && [[ -z $patch ]]; then
   case "$lrversion" in
     6.1.30|6.2.10)
     
-      if wget -q ${patches_link}/${lrversion}/portal/LATEST.txt --user="${liferay_user}" --password="${liferay_pass}" -P /tmp; then
+      if download quiet ${patches_link}/${lrversion}/portal/LATEST.txt /tmp; then
   
         latest_patch=$(cat /tmp/LATEST.txt) && rm -f /tmp/LATEST.txt
   
@@ -230,7 +255,9 @@ fi
 
 install_liferay() {
  
-  if [[ ! -d $workspace/$liferay_instance ]] && [[ -z $dpatch ]]; then
+  if [[ -d $workspace/$liferay_instance ]]; then
+    echo "There's already an instance of Liferay installed on $workspace/$liferay_instance"
+  else
     download_liferay
     echo "Unpacking Liferay..."
     unzip -qn bundles/$liferay_zip -d $workspace
@@ -238,12 +265,6 @@ install_liferay() {
     install_license
     install_patching-tool $workspace/$liferay_instance
     install_latest_patch
-  elif [[ -d $workspace/$liferay_instance ]] && [[ -z $dpatch ]]; then
-    echo "There's already an instance of Liferay installed on $workspace/$liferay_instance"
-    echo "Nothing to do. Exiting..."
-    exit 1
-  elif [[ -d $workspace/$liferay_instance ]] && [[ ! -z $dpatch ]]; then
-    download_patch $dpatch
   fi
    
 }
@@ -256,6 +277,10 @@ run() {
   
   get_liferay_credentials
   install_liferay
+  
+  if [[ ! -z $dpatch ]]; then
+    download_patch $dpatch
+  fi
 
   if [[ ! -z $patch ]]; then
     install_patch $patch
