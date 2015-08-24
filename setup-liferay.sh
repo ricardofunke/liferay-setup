@@ -58,6 +58,8 @@ download(){
   # $2 Download URL
   # $3 Path to download to
 
+  [[ -z $liferay_user || -z $liferay_pass ]] && get_liferay_credentials
+
   case "$1" in
     progress)
       wget -nv --show-progress -c $2 --user="${liferay_user}" --password="${liferay_pass}" -P $3
@@ -275,7 +277,6 @@ run() {
     exit 1
   fi
   
-  get_liferay_credentials
   install_liferay
   
   if [[ ! -z $dpatch ]]; then
