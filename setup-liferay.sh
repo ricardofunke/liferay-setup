@@ -272,8 +272,13 @@ install_liferay() {
 }
 
 run() {
-  if [[ -z $workspace || -z $lrversion ]]; then
-    echo "You must specify a workspace and a Liferay version!"
+  if [[ -z $workspace ]]; then
+    echo "You must specify a workspace!" 
+    exit 1
+  fi
+
+  if [[ -z $lrversion ]]; then
+    echo "You must specify a Liferay version!"
     exit 1
   fi
   
