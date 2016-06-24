@@ -1,8 +1,16 @@
 #!/bin/bash
 
-portal_link='https://files.liferay.com/private/ee/portal'
-patchingtool_link='https://files.liferay.com/private/ee/fix-packs/patching-tool'
-patches_link='https://files.liferay.com/private/ee/fix-packs'
+# 1 for true
+# 0 for false
+no_auth=1
+repository_protocol='http'
+liferay_server='192.168.110.251'
+#repository_protocol='https'
+#liferay_server='files.liferay.com'
+
+portal_link="${repository_protocol}://${liferay_server}/private/ee/portal"
+patchingtool_link="${repository_protocol}://${liferay_server}/private/ee/fix-packs/patching-tool"
+patches_link="${repository_protocol}://${liferay_server}/private/ee/fix-packs"
 
 mkdir bundles licenses patches patching-tool tickets &> /dev/null
 
@@ -13,8 +21,8 @@ lrversion() {
   case "$ver_option" in
     6.1.10) lrver="${ver_option}-ee-ga1-20120217120951450" dwnldver="${ver_option}" ;;
     6.1.20) lrver="${ver_option}-ee-ga2-20120731110418084" dwnldver="${ver_option}" ;;
-    6.1.30) lrver="${ver_option}-ee-ga3-20130812170130063" dwnldver="${ver_option}.1" ;;
-    6.2.10) lrver="${ver_option}.1-ee-ga1-20131126141110470" dwnldver="${ver_option}.1" ;;
+    6.1.30) lrver="${ver_option%.*}-ee-ga3-sp5-20160201142343123" dwnldver="${ver_option}.5" ;;
+    6.2.10) lrver="${ver_option%.*}-ee-sp14-20151105114451508" dwnldver="${ver_option}.15" ;;
     *)      echo "${ver_option} is not a valid version. Available versions are 6.1.10, 6.1.20, 6.1.30, 6.2.10" ; exit 1 ;;
   esac
 
@@ -58,7 +66,7 @@ download(){
   # $2 Download URL
   # $3 Path to download to
 
-  [[ -z $liferay_user || -z $liferay_pass ]] && get_liferay_credentials
+  [[ (-z $liferay_user || -z $liferay_pass) && $no_auth -ne 1 ]] && get_liferay_credentials
 
   case "$1" in
     progress)
@@ -198,28 +206,17 @@ download_patch() {
 
 install_patch() {
 
-  case "$1" in
-    portal-*)       
+  if [[ "$1" =~ (portal|hotfix)-[0-9]+-[0-9]{4} ]]; then
       download_patch "$1"
       if [[ $? -eq 0 ]]; then
+        ./$workspace/$liferay_instance/patching-tool/patching-tool.sh revert
         ./$workspace/$liferay_instance/patching-tool/patching-tool.sh install
       else
         echo "ERROR: Could not download $1!"
       fi
-    ;;
-    hotfix-*)    
-      download_patch "$1"
-      if [[ $? -eq 0 ]]; then
-        ./$workspace/$liferay_instance/patching-tool/patching-tool.sh install
-      else
-        echo "ERROR: Could not download $1!"
-      fi
-    ;;
-    *)
+  else
       echo "Usage: $FUNCNAME [portal-*|hotfix-*]"
-    ;;
-  esac
-
+  fi
 }
 
 install_latest_patch() {
