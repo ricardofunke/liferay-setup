@@ -264,6 +264,7 @@ install_liferay() {
     install_license
     install_patching-tool $workspace/$liferay_instance
     install_latest_patch
+    cp portal-ext.properties $workspace/$liferay_instance
   fi
    
 }
