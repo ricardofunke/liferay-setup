@@ -23,13 +23,20 @@ lrversion() {
     6.1.20) lrver="${ver_option}-ee-ga2-20120731110418084" dwnldver="${ver_option}" ;;
     6.1.30) lrver="${ver_option%.*}-ee-ga3-sp5-20160201142343123" dwnldver="${ver_option}.5" ;;
     6.2.10) lrver="${ver_option%.*}-ee-sp14-20151105114451508" dwnldver="${ver_option}.15" ;;
-    *)      echo "${ver_option} is not a valid version. Available versions are 6.1.10, 6.1.20, 6.1.30, 6.2.10" ; exit 1 ;;
+    7.0.10) lrver="${ver_option%.*}-sp1-20161027112321352" dwnldver="${ver_option}.1" ;;
+    *)      echo "${ver_option} is not a valid version. Available versions are 6.1.10, 6.1.20, 6.1.30, 6.2.10, 7.0.10" ; exit 1 ;;
   esac
 
-  liferay_zip="liferay-portal-tomcat-${lrver}.zip"
-  liferay_instance="liferay-portal-${lrver%-*}"
-  lrver_major="${ver_option%.*}"
-  lrversion=${ver_option}
+  if [[ $ver_option == "7.0.10" ]]; then
+    liferay_zip="liferay-dxp-digital-enterprise-tomcat-${lrver}.zip"
+    liferay_instance="liferay-dxp-digital-enterprise-${lrver%-*}"
+  else
+    liferay_zip="liferay-portal-tomcat-${lrver}.zip"
+    liferay_instance="liferay-portal-${lrver%-*}"
+  fi
+
+    lrver_major="${ver_option%.*}"
+    lrversion=${ver_option}
 }
 
 create_workspace() {
@@ -84,9 +91,11 @@ download(){
 
 download_patching-tool() {
   
-  if download quiet ${patchingtool_link}/LATEST.txt /tmp; then
+  [[ "${lrver_major%.*}" == "7" ]] && rel="-2.0"
+ 
+  if download quiet ${patchingtool_link}/LATEST${rel}.txt /tmp; then
 
-    pt_latest=$(cat /tmp/LATEST.txt) && rm -f /tmp/LATEST.txt 
+    pt_latest=$(cat /tmp/LATEST${rel}.txt) && rm -f /tmp/LATEST${rel}.txt 
 
     if [[ ! -e patching-tool/patching-tool-${pt_latest}-internal.zip ]]; then
 
@@ -107,12 +116,11 @@ install_patching-tool() {
 
   download_patching-tool
 
-  pt_latest_local=$(ls -1 patching-tool/ | sort -nr | head -n1)
-  if [[ ! -z $pt_latest_local ]]; then
+  if [[ ! -z $pt_latest ]]; then
     rm -rf "$liferay_home/patching-tool"
 
     echo "Unpacking patching-tool..."
-    unzip -qn patching-tool/$pt_latest_local -d "$liferay_home"
+    unzip -qn patching-tool/patching-tool-${pt_latest}-internal.zip -d "$liferay_home"
 
     ./$liferay_home/patching-tool/patching-tool.sh auto-discovery
 
@@ -122,7 +130,12 @@ install_patching-tool() {
 
 install_license() {
   mkdir $workspace/$liferay_instance/deploy
-  cp licenses/license-portaldevelopment-developer-cluster-${lrver_major}*.xml $workspace/$liferay_instance/deploy
+
+  if [[ "${lrver_major%.*}" == "7" ]]; then
+    cp licenses/activation-key-digitalenterprisedevelopment-${lrver_major}-liferaycom.xml $workspace/$liferay_instance/deploy
+  else
+    cp licenses/license-portaldevelopment-developer-cluster-${lrver_major}*.xml $workspace/$liferay_instance/deploy
+  fi
 }
 
 download_liferay() {
@@ -147,6 +160,19 @@ download_patch() {
 #  fi
 
   case "$1" in
+    de-*)
+      case "$1" in
+        *-7010)
+          if [[ ! -e patches/liferay-fix-pack-${1}.zip ]]; then
+            download progress ${patches_link}/7.0.10/de/liferay-fix-pack-${1}.zip patches/
+          fi
+          cp -v patches/liferay-fix-pack-${1}.zip $workspace/$liferay_instance/patching-tool/patches/
+        ;;
+        *)
+          echo "Usage: $FUNCNAME [de-*-7010]"
+        ;;
+      esac
+    ;;
     portal-*)
       case "$1" in
         *-6130)
@@ -192,13 +218,19 @@ download_patch() {
           fi
           cp -v patches/liferay-${1}.zip $workspace/$liferay_instance/patching-tool/patches/
         ;;
+        *-7010)
+          if [[ ! -e patches/liferay-${1}.zip ]]; then
+            download progress ${patches_link}/7.0.10/hotfix/liferay-${1}.zip patches/
+          fi
+          cp -v patches/liferay-${1}.zip $workspace/$liferay_instance/patching-tool/patches/
+        ;;
         *)
-          echo "Usage: $FUNCNAME [portal-*-6110|portal-*-6120|portal-*-6130|portal-*-6210]"
+          echo "Usage: $FUNCNAME [hotfix-*-6110|hotfix-*-6120|hotfix-*-6130|hotfix-*-6210|hotfix-*-7010]"
         ;;
       esac
     ;;
     *)
-      echo "Usage: $FUNCNAME [portal-*|hotfix-*]"
+      echo "Usage: $FUNCNAME [de-*|portal-*|hotfix-*]"
     ;;
   esac
 
@@ -206,7 +238,7 @@ download_patch() {
 
 install_patch() {
 
-  if [[ "$1" =~ (portal|hotfix)-[0-9]+-[0-9]{4} ]]; then
+  if [[ "$1" =~ (de|portal|hotfix)-[0-9]+-[0-9]{4} ]]; then
       download_patch "$1"
       if [[ $? -eq 0 ]]; then
         ./$workspace/$liferay_instance/patching-tool/patching-tool.sh revert
@@ -215,7 +247,7 @@ install_patch() {
         echo "ERROR: Could not download $1!"
       fi
   else
-      echo "Usage: $FUNCNAME [portal-*|hotfix-*]"
+      echo "Usage: $FUNCNAME [de-*|portal-*|hotfix-*]"
   fi
 }
 
@@ -223,6 +255,29 @@ install_latest_patch() {
 
 if [[ $nopatch != true ]] && [[ -z $patch ]]; then
   case "$lrversion" in
+    7.0.10)
+    
+      if download quiet ${patches_link}/${lrversion}/de/LATEST.txt /tmp; then
+  
+        latest_patch=$(cat /tmp/LATEST.txt) && rm -f /tmp/LATEST.txt
+  
+        if [[ ! -e patches/liferay-fix-pack-de-${latest_patch}-${lrversion//./}.zip ]]; then
+  
+          echo "Downloading latest patch..."
+          install_patch "de-${latest_patch}-${lrversion//./}"
+
+        else
+
+          cp patches/liferay-fix-pack-de-${latest_patch}-${lrversion//./}.zip $workspace/$liferay_instance/patching-tool/patches/
+          ./$workspace/$liferay_instance/patching-tool/patching-tool.sh install
+
+        fi
+  
+      else
+        echo "ERROR: Could not determine latest patch version!"
+      fi
+    
+    ;;
     6.1.30|6.2.10)
     
       if download quiet ${patches_link}/${lrversion}/portal/LATEST.txt /tmp; then
